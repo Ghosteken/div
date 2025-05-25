@@ -1,0 +1,10 @@
+{
+  "ai-robot": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/openai.svg",
+  "code-generation": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/visualstudiocode.svg",
+  "processing": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/nvidia.svg",
+  "git-commit": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/git.svg",
+  "users": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/github.svg",
+  "react-component": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/react.svg",
+  "api-endpoint": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/fastapi.svg",
+  "database": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/mongodb.svg"
+} 

@@ -1,0 +1,82 @@
+{
+  "certificates": [
+    {
+      "certId": "cert-1748193019747",
+      "name": "mons",
+      "issuer": "habib",
+      "date": "2025-05-13"
+    },
+    {
+      "certId": "cert-1748193039670",
+      "name": "mons",
+      "issuer": "habib",
+      "date": "2025-05-13"
+    },
+    {
+      "certId": "cert-1748197017303",
+      "name": "ss",
+      "issuer": "ss",
+      "date": "2025-05-22",
+      "nin": "70721313",
+      "filePath": "/uploads/1748197017205-cover.png"
+    },
+    {
+      "certId": "cert-1748197017321",
+      "name": "ss",
+      "issuer": "ss",
+      "date": "2025-05-22",
+      "nin": "70721313",
+      "filePath": "/uploads/1748197017297-cover.png"
+    },
+    {
+      "certId": "cert-1748197265371",
+      "name": "ee",
+      "issuer": "ee",
+      "date": "2025-05-09",
+      "nin": "7073909381",
+      "filePath": "/uploads/1748197265368-a3c.png"
+    },
+    {
+      "certId": "cert-1748197820836",
+      "name": "qa",
+      "issuer": "qa",
+      "date": "2025-05-14",
+      "nin": "3270732434",
+      "filePath": "/uploads/1748197820834-a3c.png"
+    },
+    {
+      "certId": "cert-1748210087288",
+      "name": "hjhn",
+      "issuer": "jhjm",
+      "date": "2004-05-07",
+      "nin": "3456787655678",
+      "filePath": "/uploads/1748210087228-a3b.png"
+    }
+  ],
+  "codes": {
+    "4nfls2": {
+      "certId": "cert-1748193039670",
+      "used": true
+    },
+    "hv6hbf": {
+      "certId": "cert-1748197017321",
+      "used": true
+    },
+    "rd57bc": {
+      "certId": "cert-1748197265371",
+      "used": true
+    },
+    "3aqmoc": {
+      "certId": "cert-1748197820836",
+      "used": false
+    },
+    "3q9npw": {
+      "certId": "cert-1748197820836",
+      "used": false
+    },
+    "vj1rx3": {
+      "certId": "cert-1748197820836",
+      "used": true
+    }
+  }
+}
