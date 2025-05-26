@@ -7,7 +7,7 @@ const multer = require('multer');
 const path = require('path');
 
 const app = express();
-const PORT = 5000;
+const PORT = 5001;
 const SECRET = 'ubdbwu9d38nd398hd393d928';
 
 // Middleware

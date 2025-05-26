@@ -3,6 +3,22 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/auth.css';
 
+// Hardcoded credentials for testing
+const HARDCODED_CREDENTIALS = {
+  student: {
+    identifier: 'student123',
+    password: 'student123'
+  },
+  institution: {
+    identifier: 'institution@test.com',
+    password: 'institution123'
+  },
+  admin: {
+    identifier: 'admin@certifyme.com',
+    password: 'admin123'
+  }
+};
+
 function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,18 +39,22 @@ function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Hardcoded admin credentials
-      if (role === 'admin') {
-        if (formData.identifier === 'admin@certifyme.com' && formData.password === 'admin123') {
-          localStorage.setItem('token', 'admin-token');
-          localStorage.setItem('userRole', 'admin');
-          navigate('/admin-dashboard');
-          return;
-        } else {
-          throw new Error('Invalid admin credentials');
+      const credentials = HARDCODED_CREDENTIALS[role];
+      if (formData.identifier === credentials.identifier && 
+          formData.password === credentials.password) {
+        
+        localStorage.setItem('token', `mock-token-${role}`);
+        localStorage.setItem('userRole', role);
+        
+        if (role === 'student') {
+          localStorage.setItem('userNin', formData.identifier);
         }
+
+        navigate(`/${role}-dashboard`);
+        return;
       }
 
+      // If hardcoded credentials don't match, try normal API login
       const endpoint = `/api/${role}/login`;
       const response = await axios.post(`http://localhost:5000${endpoint}`, formData);
       
@@ -47,7 +67,7 @@ function LoginPage() {
 
       navigate(`/${role}-dashboard`);
     } catch (error) {
-      setError(error.response?.data?.message || error.message || 'Login failed. Please try again.');
+      setError(error.response?.data?.message || 'Invalid credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
