@@ -1,21 +1,27 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Layout from '../components/Layout';
+import '../styles/home.css';
 
 function HomePage() {
   const [code, setCode] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const verifyCode = async () => {
+  const verifyCode = async (e) => {
+    e?.preventDefault();
     setError('');
     setResult(null);
+    
     if (!code.trim()) {
       setError('Please enter a verification code.');
       return;
     }
 
+    setIsLoading(true);
     try {
       const response = await axios.get(`http://localhost:5000/api/verify/${code.trim()}`);
       if (response.data && !response.data.error) {
@@ -25,6 +31,8 @@ function HomePage() {
       }
     } catch (err) {
       setError('Invalid or used code.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -33,94 +41,161 @@ function HomePage() {
   };
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
-      {/* Top navigation with Login */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-        <button
-          onClick={handleLogin}
-          style={{
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            padding: '0.5rem 1rem',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
-          Login
-        </button>
+    <Layout>
+      <div className="home-container">
+        {/* Add particles */}
+        <div className="particle"></div>
+        <div className="particle"></div>
+        <div className="particle"></div>
+        <div className="particle"></div>
+        <div className="particle"></div>
+        
+        <div className="home-content">
+          {/* Hero Section */}
+          <section className="hero-section">
+            <h1 className="hero-title">
+              Verify Your Certificates with Confidence
+            </h1>
+            <p className="hero-subtitle">
+              Our secure verification system ensures the authenticity of your educational and professional certificates using advanced blockchain technology.
+            </p>
+          </section>
+
+          {/* Verification Form */}
+          <section className="verification-form">
+            <h2 className="verification-title">Certificate Verification</h2>
+
+            <form onSubmit={verifyCode}>
+              <div className="search-container">
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Enter verification code"
+                  className="search-input"
+                />
+                <span className="search-icon">🔍</span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="verify-button"
+              >
+                {isLoading ? (
+                  <>
+                    <span className="spinner"></span>
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    <span>Verify Certificate</span>
+                    <span>→</span>
+                  </>
+                )}
+              </button>
+
+              {error && (
+                <div className="auth-error">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+                  </svg>
+                  {error}
+                </div>
+              )}
+            </form>
+          </section>
+
+          {/* Features Grid */}
+          <section className="features-grid">
+            {[
+              {
+                icon: '🔒',
+                title: 'Secure Verification',
+                description: 'Advanced encryption and security measures to protect certificate data.'
+              },
+              {
+                icon: '⚡',
+                title: 'Instant Results',
+                description: 'Get verification results in real-time with our fast processing system.'
+              },
+              {
+                icon: '📱',
+                title: 'Mobile Friendly',
+                description: 'Verify certificates on any device with our responsive platform.'
+              },
+              {
+                icon: '📊',
+                title: 'Detailed Information',
+                description: 'Access comprehensive certificate details and verification history.'
+              }
+            ].map((feature, index) => (
+              <div key={index} className="feature-card">
+                <span className="feature-icon">{feature.icon}</span>
+                <h3 className="feature-title">{feature.title}</h3>
+                <p className="feature-description">{feature.description}</p>
+              </div>
+            ))}
+          </section>
+
+          {/* Certificate Result */}
+          {result && (
+            <section className="certificate-result">
+              <div className="result-status">
+                <span className="status-badge">
+                  <span>✓</span>
+                  <span>Certificate Verified</span>
+                </span>
+              </div>
+
+              <div className="result-grid">
+                {[
+                  { label: 'Name', value: result.name },
+                  { label: 'Issued By', value: result.issuer },
+                  { label: 'Issue Date', value: result.issueDate ? new Date(result.issueDate).toLocaleDateString() : 'N/A' },
+                  { label: 'Expiry Date', value: result.expiryDate ? new Date(result.expiryDate).toLocaleDateString() : 'N/A' },
+                  { label: 'Status', value: result.valid ? 'Valid' : 'Invalid', isStatus: true }
+                ].map((item, index) => (
+                  <div key={index} className="result-item">
+                    <div className="result-label">
+                      {item.label}
+                    </div>
+                    <div className={`result-value ${item.isStatus ? (result.valid ? 'valid' : 'invalid') : ''}`}>
+                      {item.value || 'N/A'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  onClick={() => {
+                    setResult(null);
+                    setCode('');
+                  }}
+                  className="verify-another-btn"
+                >
+                  Verify Another Certificate
+                </button>
+              </div>
+            </section>
+          )}
+        </div>
       </div>
 
-      {/* Main certificate verification UI */}
-      <h1 style={{ marginBottom: '1rem', textAlign: 'center' }}>Verify Certificate</h1>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-        <input
-          type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Enter verification code"
-          style={{
-            padding: '0.5rem',
-            width: '300px',
-            maxWidth: '100%',
-            marginRight: '1rem',
-            borderRadius: '4px',
-            border: '1px solid #ccc'
-          }}
-        />
-        <button
-          onClick={verifyCode}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#007BFF',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Verify
-        </button>
-      </div>
-
-      {/* Error message */}
-      {error && (
-        <div
-          style={{
-            backgroundColor: '#f8d7da',
-            color: '#842029',
-            padding: '1rem',
-            borderRadius: '5px',
-            marginBottom: '1rem',
-            textAlign: 'center'
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {/* Composed result display */}
-      {result && (
-        <div
-          style={{
-            backgroundColor: '#e9f7ef',
-            border: '1px solid #28a745',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 6px rgba(40, 167, 69, 0.2)'
-          }}
-        >
-          <h2 style={{ color: '#28a745', marginBottom: '0.5rem' }}>Certificate Verified</h2>
-          <p><strong>Name:</strong> {result.name || 'N/A'}</p>
-          <p><strong>Issued By:</strong> {result.issuer || 'N/A'}</p>
-          <p><strong>Issue Date:</strong> {result.issueDate ? new Date(result.issueDate).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>Expiration Date:</strong> {result.expiryDate ? new Date(result.expiryDate).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>Status:</strong> <span style={{ color: result.valid ? '#28a745' : '#dc3545' }}>{result.valid ? 'Valid' : 'Valid'}</span></p>
-          {/* Add more certificate fields as needed */}
-        </div>
-      )}
-    </div>
+      <style>
+        {`
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </Layout>
   );
 }
 
