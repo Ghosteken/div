@@ -9,12 +9,15 @@ function HomePage() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [useAI, setUseAI] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
   const navigate = useNavigate();
 
   const verifyCode = async (e) => {
     e?.preventDefault();
     setError('');
     setResult(null);
+    setAiAnalysis(null);
     
     if (!code.trim()) {
       setError('Please enter a verification code.');
@@ -26,6 +29,19 @@ function HomePage() {
       const response = await axios.get(`http://localhost:5000/api/verify/${code.trim()}`);
       if (response.data && !response.data.error) {
         setResult(response.data);
+        
+        // If AI is enabled, get additional analysis
+        if (useAI) {
+          try {
+            const aiResponse = await axios.post(`http://localhost:5000/api/verify/ai-analysis`, {
+              certificateData: response.data
+            });
+            setAiAnalysis(aiResponse.data);
+          } catch (aiErr) {
+            console.error('AI analysis failed:', aiErr);
+            // Don't show error to user as this is an enhancement
+          }
+        }
       } else {
         setError(response.data.error || 'Invalid or used code.');
       }
@@ -75,6 +91,20 @@ function HomePage() {
                   className="search-input"
                 />
                 <span className="search-icon">🔍</span>
+              </div>
+
+              <div className="ai-toggle">
+                <label className="ai-toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={useAI}
+                    onChange={(e) => setUseAI(e.target.checked)}
+                  />
+                  <span className="ai-toggle-text">
+                    Enable AI-powered verification insights
+                    <span className="ai-badge">AI</span>
+                  </span>
+                </label>
               </div>
 
               <button
@@ -167,10 +197,33 @@ function HomePage() {
                 ))}
               </div>
 
+              {/* AI Analysis Section */}
+              {aiAnalysis && (
+                <div className="ai-analysis">
+                  <div className="ai-header">
+                    <span className="ai-icon">🤖</span>
+                    <h3>AI-Powered Insights</h3>
+                    <span className="ai-badge">AI</span>
+                  </div>
+                  <div className="ai-content">
+                    {aiAnalysis.insights.map((insight, index) => (
+                      <div key={index} className="ai-insight">
+                        <span className="insight-icon">{insight.icon}</span>
+                        <div className="insight-content">
+                          <h4>{insight.title}</h4>
+                          <p>{insight.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div style={{ textAlign: 'center' }}>
                 <button
                   onClick={() => {
                     setResult(null);
+                    setAiAnalysis(null);
                     setCode('');
                   }}
                   className="verify-another-btn"

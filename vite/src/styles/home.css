@@ -410,4 +410,162 @@
     color: #718096;
     font-size: 0.9rem;
   }
+}
+
+/* AI Toggle */
+.ai-toggle {
+  max-width: 600px;
+  margin: 1rem auto;
+  padding: 0.5rem 0;
+}
+
+.ai-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ai-toggle-label input[type="checkbox"] {
+  appearance: none;
+  width: 3rem;
+  height: 1.5rem;
+  background-color: #e2e8f0;
+  border-radius: 1rem;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.ai-toggle-label input[type="checkbox"]::before {
+  content: '';
+  position: absolute;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  top: 0.125rem;
+  left: 0.125rem;
+  background-color: white;
+  transition: all 0.3s ease;
+}
+
+.ai-toggle-label input[type="checkbox"]:checked {
+  background-color: #667eea;
+}
+
+.ai-toggle-label input[type="checkbox"]:checked::before {
+  transform: translateX(1.5rem);
+}
+
+.ai-toggle-text {
+  color: #4a5568;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* AI Badge */
+.ai-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* AI Analysis Section */
+.ai-analysis {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.ai-icon {
+  font-size: 1.5rem;
+}
+
+.ai-header h3 {
+  color: #2d3748;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ai-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.ai-insight {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.ai-insight:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.insight-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.insight-content h4 {
+  color: #2d3748;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.insight-content p {
+  color: #4a5568;
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Dark mode support for AI components */
+@media (prefers-color-scheme: dark) {
+  .ai-toggle-label input[type="checkbox"] {
+    background-color: #4a5568;
+  }
+  
+  .ai-toggle-text {
+    color: #e2e8f0;
+  }
+  
+  .ai-analysis {
+    border-top-color: #4a5568;
+  }
+  
+  .ai-header h3 {
+    color: #e2e8f0;
+  }
+  
+  .ai-insight {
+    background: rgba(45, 55, 72, 0.5);
+  }
+  
+  .insight-content h4 {
+    color: #e2e8f0;
+  }
+  
+  .insight-content p {
+    color: #a0aec0;
+  }
 } 
