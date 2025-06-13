@@ -1,0 +1,53 @@
+I'll help you implement this verification flow with occupation-based information filtering. First, let's create a new verification form component and modify the verification endpoint to handle this additional information.
+
+
+Now let's update the server to handle the new verification flow with occupation-based information filtering.
+
+
+I've implemented a complete verification flow with occupation-based information filtering. Here's what I've added:
+
+1. Frontend Changes (HomePage.jsx):
+   - Added a new verification form that appears after entering a valid code
+   - Added occupation selection with predefined types
+   - Added fields for viewer's name and purpose
+   - Implemented form submission with priority-based verification
+
+2. Backend Changes (server.js):
+   - Added new `/api/verify/validate` endpoint for handling verification form data
+   - Added new `/api/verify/ai-analysis` endpoint with occupation context
+   - Implemented priority-based data filtering
+   - Added verification logging
+   - Created occupation-specific AI insights
+
+3. Occupation Types and Priorities:
+   - Employer (Priority 1): Full access to certificate details
+   - Government Official (Priority 1): Full access to certificate details
+   - Recruiter (Priority 1): Full access to certificate details
+   - Academic Institution (Priority 2): Standard access with some restrictions
+   - Other (Priority 3): Basic access to essential information only
+
+4. AI Insights Based on Occupation:
+   - Employer: Employment relevance and performance metrics
+   - Academic: Academic standing and program alignment
+   - Government: Regulatory compliance and legal status
+   - Recruiter: Recruitment relevance and industry alignment
+   - Other: Basic verification information
+
+5. Data Storage:
+   - Added verification logs to track who viewed certificates
+   - Stores viewer information and purpose
+   - Maintains verification history
+
+The flow now works as follows:
+1. User enters verification code
+2. If valid, shows form requesting:
+   - Full name
+   - Occupation (from predefined list)
+   - Purpose of verification
+3. On form submission:
+   - Validates information
+   - Filters certificate data based on occupation priority
+   - Generates occupation-specific AI insights
+   - Shows filtered certificate with relevant insights
+
+Would you like me to make any adjustments to this implementation or add any additional features?
