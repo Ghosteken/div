@@ -2,14 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 
-// Middleware
+
 app.use(cors());
 app.use(express.json());
 
-// Generate code endpoint
+
 app.post('/api/generate-code', async (req, res) => {
   try {
-    // Add your code generation logic here
+    
     const response = {
       success: true,
       code: 'Generated code will go here',
@@ -31,3 +31,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 }); 
+
+
+// the student page should be a page where i can upload my certificates with certificate id and issuer, and see the certificates i have already uploaded with certification codes that changes after it has been used for verfication, and any other nessacary details. the main page is the page where the certificates are checked with code if verifed
+// all uploaded certificates are automatically verfied when the user puts in the certificate id and issuer 
