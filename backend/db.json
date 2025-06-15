@@ -1,0 +1,19 @@
+{
+  "users": {
+    "students": [],
+    "institutions": [],
+    "admins": []
+  },
+  "certificates": [
+    {
+      "id": "cert-1750027092548",
+      "certificateId": "123456789",
+      "issuer": "cbb",
+      "nin": "student123",
+      "filePath": "/uploads/1750027092445-Software-Engineering-9th-Edition-by-Ian-Sommerville.pdf",
+      "verificationCode": "AB737405",
+      "isVerified": false,
+      "uploadDate": "2025-06-15T22:38:12.548Z"
+    }
+  ]
+}

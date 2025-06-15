@@ -5,38 +5,72 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
-const PORT = 5001;
+const PORT = 5000;
 const SECRET = 'ubdbwu9d38nd398hd393d928';
+
+// Initialize database structure
+const db = {
+  users: {
+    students: [],
+    institutions: [],
+    admins: []
+  },
+  certificates: []
+};
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+// Load existing data if available
+try {
+  if (fs.existsSync(path.join(__dirname, 'db.json'))) {
+    const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'db.json'), 'utf8'));
+    Object.assign(db, data);
+  }
+} catch (error) {
+  console.error('Error loading database:', error);
+}
+
+// Save database to file
+const saveDb = () => {
+  try {
+    fs.writeFileSync(path.join(__dirname, 'db.json'), JSON.stringify(db, null, 2));
+  } catch (error) {
+    console.error('Error saving database:', error);
+  }
+};
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Request Headers:', req.headers);
+  console.log('Request Body:', req.body);
+  next();
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: err.message });
+});
+
 // Static folder for serving uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Create uploads directory if it doesn't exist
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
-
-// Initialize certs.json if it doesn't exist or is invalid
-const initDB = () => {
-  if (!fs.existsSync('certs.json')) {
-    const initialData = { certificates: [], codes: {} };
-    fs.writeFileSync('certs.json', JSON.stringify(initialData, null, 2));
-  } else {
-    try {
-      JSON.parse(fs.readFileSync('certs.json', 'utf8'));
-    } catch {
-      const initialData = { certificates: [], codes: {} };
-      fs.writeFileSync('certs.json', JSON.stringify(initialData, null, 2));
-    }
-  }
-};
-initDB();
 
 // Multer config
 const storage = multer.diskStorage({
@@ -48,15 +82,18 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Database utilities
-const loadDB = () => JSON.parse(fs.readFileSync('certs.json', 'utf8'));
-const saveDB = (data) => fs.writeFileSync('certs.json', JSON.stringify(data, null, 2));
-
 // Auth middleware
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'Unauthorized: No token' });
+  
   try {
+    // For development, accept mock tokens
+    if (token.startsWith('mock-token-')) {
+      req.user = { role: token.replace('mock-token-', '') };
+      return next();
+    }
+    
     const decoded = jwt.verify(token, SECRET);
     req.user = decoded;
     next();
@@ -65,78 +102,167 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// Login route
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  if (username === 'admin' && password === 'admin') {
-    const token = jwt.sign({ user: username }, SECRET, { expiresIn: '1h' });
-    res.json({ token });
-  } else {
-    res.status(401).json({ message: 'Invalid credentials' });
+// Student signup endpoint
+app.post('/api/student/signup', async (req, res) => {
+  const { nin, fullName, email, password } = req.body;
+
+  // Validate input
+  if (!nin || !fullName || !email || !password) {
+    return res.status(400).json({ message: 'All fields are required' });
   }
+
+  // Check if student already exists
+  const existingStudent = db.users.students.find(s => s.nin === nin || s.email === email);
+  if (existingStudent) {
+    return res.status(400).json({ message: 'Student with this NIN or email already exists' });
+  }
+
+  // Create new student
+  const newStudent = {
+    nin,
+    fullName,
+    email,
+    password, // In a real app, this should be hashed
+    createdAt: new Date().toISOString()
+  };
+
+  // Add to database
+  db.users.students.push(newStudent);
+  saveDb();
+
+  // Generate token
+  const token = jwt.sign(
+    { nin, role: 'student' },
+    SECRET,
+    { expiresIn: '24h' }
+  );
+
+  res.json({
+    message: 'Student account created successfully',
+    token,
+    user: {
+      nin: newStudent.nin,
+      fullName: newStudent.fullName,
+      email: newStudent.email
+    }
+  });
 });
 
-// Get all certificates
-app.get('/api/certificates', authMiddleware, (req, res) => {
-  const db = loadDB();
-  res.json(db.certificates);
+// Student login endpoint
+app.post('/api/student/login', async (req, res) => {
+  const { identifier, password } = req.body;
+
+  // Find student by NIN or email
+  const student = db.users.students.find(s => 
+    s.nin === identifier || s.email === identifier
+  );
+
+  if (!student || student.password !== password) {
+    return res.status(401).json({ message: 'Invalid credentials' });
+  }
+
+  // Generate token
+  const token = jwt.sign({ nin: student.nin, role: 'student' }, SECRET, { expiresIn: '24h' });
+
+  res.json({
+    message: 'Login successful',
+    token,
+    user: {
+      nin: student.nin,
+      fullName: student.fullName,
+      email: student.email,
+      role: 'student'
+    }
+  });
 });
 
-// Upload certificate with file - expects field name 'image' to match client
-app.post('/api/upload', authMiddleware, upload.single('image'), (req, res) => {
-  const db = loadDB();
-  const { name, issuer, date, nin } = req.body;
+// Generate verification code
+const generateVerificationCode = () => {
+  return crypto.randomBytes(4).toString('hex').toUpperCase();
+};
+
+// Student certificate upload endpoint
+app.post('/api/student/upload-certificate', authMiddleware, upload.single('certificateFile'), (req, res) => {
+  const { certificateId, issuer } = req.body;
   const file = req.file;
+  const nin = req.body.nin;
 
-  if (!name || !issuer || !date || !nin || !file) {
+  if (!certificateId || !issuer || !file || !nin) {
     return res.status(400).json({ message: 'All fields including a file are required' });
   }
 
-  const certId = `cert-${Date.now()}`;
+  // Check if certificate ID already exists
+  const existingCert = db.certificates.find(c => c.certificateId === certificateId);
+  if (existingCert) {
+    return res.status(400).json({ message: 'Certificate ID already exists' });
+  }
+
+  const verificationCode = generateVerificationCode();
   const cert = {
-    certId,
-    name,
+    id: `cert-${Date.now()}`,
+    certificateId,
     issuer,
-    date,
     nin,
-    filePath: `/uploads/${file.filename}`
+    filePath: `/uploads/${file.filename}`,
+    verificationCode,
+    isVerified: false,
+    uploadDate: new Date().toISOString()
   };
 
   db.certificates.push(cert);
-  saveDB(db);
-  res.json({ message: 'Certificate uploaded', cert });
+  saveDb();
+  res.json({ message: 'Certificate uploaded successfully', certificate: cert });
 });
 
-// Generate public code
-app.post('/api/generate-code', authMiddleware, (req, res) => {
-  const db = loadDB();
-  const { certId } = req.body;
-  if (!certId) return res.status(400).json({ message: 'certId is required' });
-
-  // Check if certId exists
-  const certExists = db.certificates.some(c => c.certId === certId);
-  if (!certExists) return res.status(404).json({ message: 'Certificate ID not found' });
-
-  const code = Math.random().toString(36).substring(2, 8);
-  db.codes[code] = { certId, used: false };
-  saveDB(db);
-  res.json({ code });
+// Get student certificates
+app.get('/api/student/certificates/:nin', authMiddleware, (req, res) => {
+  const { nin } = req.params;
+  const certificates = db.certificates.filter(cert => cert.nin === nin);
+  res.json(certificates);
 });
 
-// Verify code
+// Verify certificate by code
 app.get('/api/verify/:code', (req, res) => {
-  const db = loadDB();
-  const code = req.params.code;
-  const entry = db.codes[code];
-  if (!entry || entry.used) return res.status(404).json({ message: 'Code invalid or used' });
+  const { code } = req.params;
+  const certificate = db.certificates.find(cert => cert.verificationCode === code);
+  
+  if (!certificate) {
+    return res.status(404).json({ message: 'Invalid verification code' });
+  }
 
-  entry.used = true;
-  saveDB(db);
+  // Mark certificate as verified
+  certificate.isVerified = true;
+  saveDb();
 
-  const cert = db.certificates.find(c => c.certId === entry.certId);
-  if (!cert) return res.status(404).json({ message: 'Certificate not found' });
-  res.json(cert);
+  res.json({
+    message: 'Certificate verified successfully',
+    certificate: {
+      certificateId: certificate.certificateId,
+      issuer: certificate.issuer,
+      uploadDate: certificate.uploadDate,
+      isVerified: certificate.isVerified
+    }
+  });
 });
 
-// Start server
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+// Start server with error handling
+const server = app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log('Current directory:', __dirname);
+  console.log('Uploads directory:', path.join(__dirname, 'uploads'));
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Please try a different port or close the application using this port.`);
+  } else {
+    console.error('Server failed to start:', err);
+  }
+  process.exit(1);
+});
+
+// Handle server shutdown gracefully
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+  });
+});
