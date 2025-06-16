@@ -1,6 +1,14 @@
 {
   "users": {
-    "students": [],
+    "students": [
+      {
+        "nin": "1234567890",
+        "fullName": "black mantis",
+        "email": "aigberuan61@gmail.com",
+        "password": "P@ssword",
+        "createdAt": "2025-06-16T05:15:43.815Z"
+      }
+    ],
     "institutions": [],
     "admins": []
   },
@@ -11,9 +19,19 @@
       "issuer": "cbb",
       "nin": "student123",
       "filePath": "/uploads/1750027092445-Software-Engineering-9th-Edition-by-Ian-Sommerville.pdf",
-      "verificationCode": "AB737405",
+      "verificationCode": "2FE13B7F",
       "isVerified": true,
       "uploadDate": "2025-06-15T22:38:12.548Z"
+    },
+    {
+      "id": "cert-1750049766403",
+      "certificateId": "belong",
+      "issuer": "irs",
+      "nin": "student123",
+      "filePath": "/uploads/1750049766381-Adesola Victor.pdf",
+      "verificationCode": "1B53A65D",
+      "isVerified": true,
+      "uploadDate": "2025-06-16T04:56:06.403Z"
     }
   ]
 }

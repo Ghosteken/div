@@ -67,6 +67,7 @@ function StudentDashboard() {
       });
       fetchCertificates();
       setError(null);
+      alert('Certificate uploaded successfully!');
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to upload certificate');
     }
@@ -109,49 +110,43 @@ function StudentDashboard() {
   return (
     <Layout>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 0' }}>
+        <h1 style={{
+          fontSize: '2rem',
+          color: 'white',
+          marginBottom: '2rem',
+          textAlign: 'center'
+        }}>
+          Student Dashboard
+        </h1>
+
+        {/* Tabs */}
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '2rem'
+          gap: '1rem',
+          marginBottom: '2rem',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          padding: '0.5rem',
+          borderRadius: '12px'
         }}>
-          <h1 style={{
-            fontSize: '2rem',
-            color: 'white',
-            margin: 0
-          }}>
-            My Certificates
-          </h1>
-          <div style={{ display: 'flex', gap: '1rem' }}>
+          {['view', 'upload'].map(tab => (
             <button
-              onClick={() => setActiveTab('view')}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
               style={{
-                backgroundColor: activeTab === 'view' ? '#667eea' : 'transparent',
-                color: 'white',
-                border: '2px solid #667eea',
-                padding: '0.5rem 1rem',
+                flex: 1,
+                padding: '1rem',
+                backgroundColor: activeTab === tab ? 'white' : 'transparent',
+                color: activeTab === tab ? '#667eea' : 'white',
+                border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
+                fontWeight: '500',
                 transition: 'all 0.3s ease'
               }}
             >
-              View Certificates
+              {tab === 'view' ? '📄 View Certificates' : '📤 Upload Certificate'}
             </button>
-            <button
-              onClick={() => setActiveTab('upload')}
-              style={{
-                backgroundColor: activeTab === 'upload' ? '#667eea' : 'transparent',
-                color: 'white',
-                border: '2px solid #667eea',
-                padding: '0.5rem 1rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              Upload Certificate
-            </button>
-          </div>
+          ))}
         </div>
 
         {error && (
@@ -167,119 +162,16 @@ function StudentDashboard() {
           </div>
         )}
 
-        {activeTab === 'upload' ? (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '2rem'
-          }}>
-            <form onSubmit={handleUpload} style={{
-              display: 'grid',
-              gap: '1.5rem'
-            }}>
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  color: '#4a5568'
-                }}>
-                  Certificate ID *
-                </label>
-                <input
-                  type="text"
-                  value={uploadData.certificateId}
-                  onChange={e => setUploadData({ ...uploadData, certificateId: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  color: '#4a5568'
-                }}>
-                  Issuing Institution *
-                </label>
-                <input
-                  type="text"
-                  value={uploadData.issuer}
-                  onChange={e => setUploadData({ ...uploadData, issuer: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  color: '#4a5568'
-                }}>
-                  Certificate File (PDF) *
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileChange}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '2px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }}
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                style={{
-                  backgroundColor: '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  padding: '0.75rem',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.3s ease'
-                }}
-              >
-                Upload Certificate
-              </button>
-            </form>
-          </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '2rem'
-          }}>
+        {activeTab === 'view' ? (
+          <div>
             {certificates.map(cert => (
-              <div
-                key={cert.id}
-                style={{
-                  backgroundColor: 'white',
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  transition: 'transform 0.3s ease',
-                  cursor: 'pointer'
-                }}
-                onClick={() => setSelectedCert(cert)}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-              >
+              <div key={cert.id} style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                marginBottom: '1rem',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}>
                 <div style={{ padding: '1.5rem' }}>
                   <h3 style={{
                     margin: '0 0 0.5rem',
@@ -318,10 +210,88 @@ function StudentDashboard() {
                         {cert.isVerified ? 'Verified ✓' : 'Pending'}
                       </span>
                     </div>
+                    <button
+                      onClick={() => downloadCertificate(cert.id)}
+                      style={{
+                        backgroundColor: '#4299e1',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        marginTop: '1rem'
+                      }}
+                    >
+                      Download Certificate
+                    </button>
                   </div>
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div>
+            <form onSubmit={handleUpload} style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#4a5568' }}>Certificate ID</label>
+                <input
+                  type="text"
+                  value={uploadData.certificateId}
+                  onChange={(e) => setUploadData({ ...uploadData, certificateId: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0'
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#4a5568' }}>Issuer</label>
+                <input
+                  type="text"
+                  value={uploadData.issuer}
+                  onChange={(e) => setUploadData({ ...uploadData, issuer: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0'
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#4a5568' }}>Certificate File</label>
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0'
+                  }}
+                />
+              </div>
+              <button
+                type="submit"
+                style={{
+                  backgroundColor: '#4299e1',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Upload Certificate
+              </button>
+            </form>
           </div>
         )}
 

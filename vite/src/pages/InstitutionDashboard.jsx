@@ -68,7 +68,7 @@ function InstitutionDashboard() {
         }
       });
 
-      await axios.post('http://localhost:5000/api/institution/upload-certificate', formData, {
+      const response = await axios.post('http://localhost:5000/api/institution/upload-certificate', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -87,7 +87,7 @@ function InstitutionDashboard() {
       });
       fetchCertificates();
     } catch (error) {
-      showMessage('error', 'Failed to upload certificate');
+      showMessage('error', 'Failed to upload certificate: ' + (error.response?.data?.message || error.message));
     } finally {
       setIsLoading(false);
     }

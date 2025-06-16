@@ -22,6 +22,7 @@ function AdminAnalytics() {
       const response = await axios.get('http://localhost:5000/api/admin/analytics', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      console.log('Analytics Response:', response.data);
       setStats(response.data);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);

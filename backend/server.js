@@ -256,6 +256,8 @@ app.get('/api/verify/:code', (req, res) => {
 
   // Mark certificate as verified
   certificate.isVerified = true;
+  // Change verification code after use
+  certificate.verificationCode = generateVerificationCode();
   saveDb();
 
   res.json({
@@ -279,9 +281,18 @@ app.post('/api/institution/upload-certificate', authMiddleware, upload.single('c
   }
 
   // Check if student exists
-  const student = db.users.students.find(s => s.nin === nin);
+  let student = db.users.students.find(s => s.nin === nin);
   if (!student) {
-    return res.status(404).json({ message: 'Student not found' });
+    // Create a new student profile if not found
+    student = {
+      nin,
+      fullName: studentName,
+      email: `${nin}@example.com`, // Placeholder email
+      password: 'defaultPassword', // Placeholder password
+      createdAt: new Date().toISOString()
+    };
+    db.users.students.push(student);
+    saveDb();
   }
 
   const verificationCode = generateVerificationCode();
@@ -376,6 +387,51 @@ app.post('/api/institution/signup', async (req, res) => {
       email: newInstitution.email,
       role: 'institution'
     }
+  });
+});
+
+// Download certificate endpoint
+app.get('/api/certificates/download/:certId', authMiddleware, (req, res) => {
+  const { certId } = req.params;
+  const certificate = db.certificates.find(cert => cert.id === certId);
+  
+  if (!certificate) {
+    return res.status(404).json({ message: 'Certificate not found' });
+  }
+
+  const filePath = path.join(__dirname, certificate.filePath);
+  console.log('Attempting to download file at path:', filePath);
+  res.download(filePath);
+});
+
+// Admin analytics endpoint
+app.get('/api/admin/analytics', authMiddleware, (req, res) => {
+  const totalCertificates = db.certificates.length;
+  const totalVerifications = db.certificates.filter(cert => cert.isVerified).length;
+  const totalInstitutions = db.users.institutions.length;
+  const totalReports = db.certificates.filter(cert => cert.isReported).length;
+
+  const recentActivity = db.certificates.slice(-5).map(cert => ({
+    type: cert.isVerified ? 'verification' : 'upload',
+    description: `Certificate ${cert.certificateId} was ${cert.isVerified ? 'verified' : 'uploaded'}`,
+    institution: cert.issuer,
+    timestamp: cert.uploadDate
+  }));
+
+  const institutionStats = db.users.institutions.map(inst => ({
+    name: inst.institutionName,
+    certificateCount: db.certificates.filter(cert => cert.issuer === inst.institutionName).length,
+    verificationCount: db.certificates.filter(cert => cert.issuer === inst.institutionName && cert.isVerified).length,
+    reportCount: db.certificates.filter(cert => cert.issuer === inst.institutionName && cert.isReported).length
+  }));
+
+  res.json({
+    totalCertificates,
+    totalVerifications,
+    totalInstitutions,
+    totalReports,
+    recentActivity,
+    institutionStats
   });
 });
 

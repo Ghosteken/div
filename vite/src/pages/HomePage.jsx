@@ -11,6 +11,8 @@ function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [useAI, setUseAI] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const navigate = useNavigate();
 
   const verifyCode = async (e) => {
@@ -29,6 +31,8 @@ function HomePage() {
       const response = await axios.get(`http://localhost:5000/api/verify/${code.trim()}`);
       if (response.data && !response.data.error) {
         setResult(response.data);
+        setVerificationResult(response.data);
+        setShowSuccessPopup(true);
         
         // If AI is enabled, get additional analysis
         if (useAI) {
@@ -235,6 +239,52 @@ function HomePage() {
           )}
         </div>
       </div>
+
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: 'white',
+          padding: '2rem',
+          borderRadius: '12px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          zIndex: 1000
+        }}>
+          <h2 style={{ color: '#48bb78', marginBottom: '1rem' }}>Success!</h2>
+          <p>Certificate verified successfully!</p>
+          <button
+            onClick={() => setShowSuccessPopup(false)}
+            style={{
+              backgroundColor: '#4299e1',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              marginTop: '1rem'
+            }}
+          >
+            Close
+          </button>
+        </div>
+      )}
+
+      {/* Verification Result */}
+      {verificationResult && (
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '2rem',
+          marginTop: '2rem',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+        }}>
+          <h2 style={{ color: '#2d3748', marginBottom: '1rem' }}>Verification Result</h2>
+          <pre style={{ color: '#4a5568' }}>{JSON.stringify(verificationResult, null, 2)}</pre>
+        </div>
+      )}
 
       <style>
         {`
