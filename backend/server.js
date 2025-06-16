@@ -245,30 +245,102 @@ app.get('/api/student/certificates/:nin', authMiddleware, (req, res) => {
   res.json(certificates);
 });
 
-// Verify certificate by code
+// Verify certificate endpoint
 app.get('/api/verify/:code', (req, res) => {
   const { code } = req.params;
-  const certificate = db.certificates.find(cert => cert.verificationCode === code);
+  console.log('Verifying code:', code);
   
+  // Find the certificate
+  const certificate = db.certificates.find(cert => cert.verificationCode === code);
+  console.log('Found certificate:', certificate ? 'Yes' : 'No');
+
   if (!certificate) {
-    return res.status(404).json({ message: 'Invalid verification code' });
+    console.log('Certificate not found for code:', code);
+    return res.status(404).json({ message: 'Invalid or used verification code' });
   }
 
-  // Mark certificate as verified
+  // Store the original code before generating a new one
+  const originalCode = certificate.verificationCode;
+  
+  // Mark as verified and generate new code
   certificate.isVerified = true;
-  // Change verification code after use
   certificate.verificationCode = generateVerificationCode();
-  saveDb();
+  certificate.originalCode = originalCode; // Store the original code
 
   res.json({
-    message: 'Certificate verified successfully',
-    certificate: {
-      certificateId: certificate.certificateId,
-      issuer: certificate.issuer,
-      uploadDate: certificate.uploadDate,
-      isVerified: certificate.isVerified
-    }
+    message: 'Certificate verified successfully!',
+    certificateId: certificate.id,
+    issuer: certificate.issuer,
+    uploadDate: certificate.uploadDate,
+    isVerified: certificate.isVerified,
+    originalCode: originalCode // Include original code in response
   });
+});
+
+// AI Analysis endpoint
+app.get('/api/verify/:code/ai', async (req, res) => {
+  const { code } = req.params;
+  console.log('Received AI analysis request for code:', code);
+  
+  // Log all available certificates for debugging
+  console.log('Available certificates:', db.certificates.map(cert => ({
+    code: cert.verificationCode,
+    originalCode: cert.originalCode,
+    id: cert.id,
+    issuer: cert.issuer
+  })));
+
+  // Find the certificate by either current or original code
+  const certificate = db.certificates.find(cert => 
+    cert.verificationCode === code || cert.originalCode === code
+  );
+  console.log('Found certificate:', certificate ? 'Yes' : 'No');
+
+  if (!certificate) {
+    console.log('Certificate not found for code:', code);
+    return res.status(404).json({
+      message: 'Certificate not found',
+      details: 'The verification code may have been used or does not exist.',
+      code: code
+    });
+  }
+
+  try {
+    // Simulate AI analysis with more detailed information
+    const analysis = {
+      authenticity: Math.random() > 0.1 ? 'High' : 'Low',
+      confidence: Math.floor(Math.random() * 100),
+      details: {
+        issuer: certificate.issuer,
+        issueDate: certificate.uploadDate,
+        verificationStatus: certificate.isVerified ? 'Verified' : 'Pending',
+        studentName: certificate.studentName || 'Not provided',
+        program: certificate.program || 'Not provided',
+        grade: certificate.grade || 'Not provided',
+        certificateId: certificate.id,
+        originalCode: certificate.originalCode || certificate.verificationCode
+      }
+    };
+
+    res.json({
+      message: 'AI analysis completed',
+      analysis,
+      certificate: {
+        id: certificate.id,
+        issuer: certificate.issuer,
+        uploadDate: certificate.uploadDate,
+        isVerified: certificate.isVerified,
+        verificationCode: certificate.verificationCode,
+        originalCode: certificate.originalCode
+      }
+    });
+  } catch (error) {
+    console.error('AI analysis error:', error);
+    res.status(500).json({
+      message: 'Error performing AI analysis',
+      error: error.message
+    });
+  }
 });
 
 // Institution certificate upload endpoint

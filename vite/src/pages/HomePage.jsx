@@ -13,44 +13,51 @@ function HomePage() {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [verificationResult, setVerificationResult] = useState(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [recentVerifications, setRecentVerifications] = useState([]);
+  const [showRecentVerifications, setShowRecentVerifications] = useState(false);
   const navigate = useNavigate();
 
   const verifyCode = async (e) => {
-    e?.preventDefault();
-    setError('');
-    setResult(null);
-    setAiAnalysis(null);
-    
+    e?.preventDefault(); // Prevent form submission
     if (!code.trim()) {
-      setError('Please enter a verification code.');
+      alert('Please enter a verification code');
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/verify/${code.trim()}`);
-      if (response.data && !response.data.error) {
-        setResult(response.data);
-        setVerificationResult(response.data);
-        setShowSuccessPopup(true);
-        
-        // If AI is enabled, get additional analysis
-        if (useAI) {
-          try {
-            const aiResponse = await axios.post(`http://localhost:5000/api/verify/ai-analysis`, {
-              certificateData: response.data
-            });
-            setAiAnalysis(aiResponse.data);
-          } catch (aiErr) {
-            console.error('AI analysis failed:', aiErr);
-            // Don't show error to user as this is an enhancement
-          }
+      // First verify the code
+      const verifyResponse = await axios.get(`http://localhost:5000/api/verify/${code}`);
+      console.log('Verification response:', verifyResponse.data);
+      setVerificationResult(verifyResponse.data);
+      setShowSuccessPopup(true);
+
+      // If AI is enabled, get the analysis
+      if (useAI) {
+        try {
+          console.log('Requesting AI analysis for code:', code);
+          const aiResponse = await axios.get(`http://localhost:5000/api/verify/${code}/ai`, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          console.log('AI analysis response:', aiResponse.data);
+          setAiAnalysis(aiResponse.data.analysis);
+        } catch (aiError) {
+          console.error('AI analysis failed:', aiError);
+          setAiAnalysis({
+            error: 'AI analysis is currently unavailable. Please try again later.',
+            details: {
+              issuer: verifyResponse.data.issuer,
+              issueDate: verifyResponse.data.uploadDate,
+              verificationStatus: verifyResponse.data.isVerified ? 'Verified' : 'Pending'
+            }
+          });
         }
-      } else {
-        setError(response.data.error || 'Invalid or used code.');
       }
-    } catch (err) {
-      setError('Invalid or used code.');
+    } catch (error) {
+      console.error('Verification error:', error);
+      alert(error.response?.data?.message || 'Error verifying certificate');
     } finally {
       setIsLoading(false);
     }
@@ -85,48 +92,44 @@ function HomePage() {
           <section className="verification-form">
             <h2 className="verification-title">Certificate Verification</h2>
 
-            <form onSubmit={verifyCode}>
-              <div className="search-container">
+            <form onSubmit={verifyCode} className="space-y-6">
+              <div>
+                <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter Verification Code
+                </label>
                 <input
                   type="text"
+                  id="verificationCode"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="Enter verification code"
-                  className="search-input"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter your verification code"
                 />
-                <span className="search-icon">🔍</span>
               </div>
 
-              <div className="ai-toggle">
-                <label className="ai-toggle-label">
-                  <input
-                    type="checkbox"
-                    checked={useAI}
-                    onChange={(e) => setUseAI(e.target.checked)}
-                  />
-                  <span className="ai-toggle-text">
-                    Enable AI-powered verification insights
-                    <span className="ai-badge">AI</span>
-                  </span>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="useAI"
+                  checked={useAI}
+                  onChange={(e) => setUseAI(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="useAI" className="ml-2 block text-sm text-gray-700">
+                  Use AI Analysis
                 </label>
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="verify-button"
+                className={`w-full py-2 px-4 rounded-md text-white font-medium ${
+                  isLoading
+                    ? 'bg-blue-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
-                {isLoading ? (
-                  <>
-                    <span className="spinner"></span>
-                    Verifying...
-                  </>
-                ) : (
-                  <>
-                    <span>Verify Certificate</span>
-                    <span>→</span>
-                  </>
-                )}
+                {isLoading ? 'Verifying...' : 'Verify Certificate'}
               </button>
 
               {error && (
@@ -242,33 +245,59 @@ function HomePage() {
 
       {/* Success Popup */}
       {showSuccessPopup && (
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          backgroundColor: 'white',
-          padding: '2rem',
-          borderRadius: '12px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          zIndex: 1000
-        }}>
-          <h2 style={{ color: '#48bb78', marginBottom: '1rem' }}>Success!</h2>
-          <p>Certificate verified successfully!</p>
-          <button
-            onClick={() => setShowSuccessPopup(false)}
-            style={{
-              backgroundColor: '#4299e1',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              marginTop: '1rem'
-            }}
-          >
-            Close
-          </button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">Verification Result</h2>
+              <button
+                onClick={() => setShowSuccessPopup(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <p className="text-green-800 font-medium">✓ Certificate verified successfully!</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-800 mb-2">Certificate Details</h3>
+                  <div className="space-y-2">
+                    <p><span className="text-gray-600">Certificate ID:</span> {verificationResult?.certificateId}</p>
+                    <p><span className="text-gray-600">Issuer:</span> {verificationResult?.issuer}</p>
+                    <p><span className="text-gray-600">Upload Date:</span> {verificationResult?.uploadDate && new Date(verificationResult.uploadDate).toLocaleDateString()}</p>
+                    <p><span className="text-gray-600">Status:</span> {verificationResult?.isVerified ? 'Verified' : 'Pending'}</p>
+                    <p><span className="text-gray-600">Verification Code:</span> {verificationResult?.originalCode}</p>
+                  </div>
+                </div>
+
+                {useAI && aiAnalysis && (
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-800 mb-2">AI Analysis</h3>
+                    <div className="space-y-2">
+                      <p><span className="text-gray-600">Authenticity:</span> {aiAnalysis.authenticity}</p>
+                      <p><span className="text-gray-600">Confidence:</span> {aiAnalysis.confidence}%</p>
+                      {aiAnalysis.details && (
+                        <>
+                          <p><span className="text-gray-600">Student Name:</span> {aiAnalysis.details.studentName}</p>
+                          <p><span className="text-gray-600">Program:</span> {aiAnalysis.details.program}</p>
+                          <p><span className="text-gray-600">Grade:</span> {aiAnalysis.details.grade}</p>
+                        </>
+                      )}
+                      {aiAnalysis.error && (
+                        <p className="text-red-600">{aiAnalysis.error}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -283,6 +312,27 @@ function HomePage() {
         }}>
           <h2 style={{ color: '#2d3748', marginBottom: '1rem' }}>Verification Result</h2>
           <pre style={{ color: '#4a5568' }}>{JSON.stringify(verificationResult, null, 2)}</pre>
+        </div>
+      )}
+
+      {/* Recent Verifications Section */}
+      {showRecentVerifications && (
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Recent Verifications</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recentVerifications && recentVerifications.length > 0 ? (
+              recentVerifications.map((verification) => (
+                <div key={verification.id} className="bg-white rounded-lg shadow-md p-4">
+                  <h3 className="text-lg font-semibold text-gray-800">{verification.certificateId}</h3>
+                  <p className="text-gray-600">Issuer: {verification.issuer}</p>
+                  <p className="text-gray-600">Date: {new Date(verification.uploadDate).toLocaleDateString()}</p>
+                  <p className="text-gray-600">Status: {verification.isVerified ? 'Verified' : 'Pending'}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-600 col-span-full">No recent verifications found.</p>
+            )}
+          </div>
         </div>
       )}
 
