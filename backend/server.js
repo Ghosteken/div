@@ -84,21 +84,45 @@ const upload = multer({ storage });
 
 // Auth middleware
 const authMiddleware = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Unauthorized: No token' });
-  
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+
+  const token = authHeader.split(' ')[1];
   try {
-    // For development, accept mock tokens
+    // Always allow mock tokens for development
     if (token.startsWith('mock-token-')) {
-      req.user = { role: token.replace('mock-token-', '') };
+      const role = token.replace('mock-token-', '');
+      req.user = { role };
+      if (role === 'student') {
+        // Try to get NIN from header or localStorage fallback
+        req.user.nin = req.headers['x-user-nin'] || req.headers['x-usernin'] || req.query.nin || 'student123';
+      }
+      if (role === 'institution') {
+        // Use a default institution name for mock
+        req.user.institutionName = 'Test Institution';
+        req.user.email = 'institution@test.com';
+      }
       return next();
     }
-    
+
+    // Handle JWT tokens
     const decoded = jwt.verify(token, SECRET);
     req.user = decoded;
+
+    // For institutions, get the institution name
+    if (decoded.role === 'institution') {
+      const institution = db.users.institutions.find(i => i.email === decoded.email);
+      if (!institution) {
+        return res.status(401).json({ message: 'Institution not found' });
+      }
+      req.user.institutionName = institution.institutionName;
+    }
+
     next();
-  } catch {
-    res.status(401).json({ message: 'Unauthorized: Invalid token' });
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid token' });
   }
 };
 
@@ -241,6 +265,116 @@ app.get('/api/verify/:code', (req, res) => {
       issuer: certificate.issuer,
       uploadDate: certificate.uploadDate,
       isVerified: certificate.isVerified
+    }
+  });
+});
+
+// Institution certificate upload endpoint
+app.post('/api/institution/upload-certificate', authMiddleware, upload.single('certificateFile'), (req, res) => {
+  const { studentName, nin, program, grade, issueDate, expiryDate } = req.body;
+  const file = req.file;
+
+  if (!studentName || !nin || !program || !file) {
+    return res.status(400).json({ message: 'Required fields missing' });
+  }
+
+  // Check if student exists
+  const student = db.users.students.find(s => s.nin === nin);
+  if (!student) {
+    return res.status(404).json({ message: 'Student not found' });
+  }
+
+  const verificationCode = generateVerificationCode();
+  const cert = {
+    id: `cert-${Date.now()}`,
+    studentName,
+    nin,
+    program,
+    grade: grade || 'N/A',
+    issueDate: issueDate || new Date().toISOString(),
+    expiryDate: expiryDate || null,
+    filePath: `/uploads/${file.filename}`,
+    verificationCode,
+    isVerified: false,
+    uploadDate: new Date().toISOString(),
+    issuer: req.user.institutionName // From auth middleware
+  };
+
+  db.certificates.push(cert);
+  saveDb();
+  res.json({ message: 'Certificate uploaded successfully', certificate: cert });
+});
+
+// Get institution's certificates
+app.get('/api/institution/certificates', authMiddleware, (req, res) => {
+  const institutionName = req.user.institutionName;
+  const certificates = db.certificates.filter(cert => cert.issuer === institutionName);
+  res.json(certificates);
+});
+
+// Revoke certificate
+app.post('/api/institution/revoke-certificate/:certId', authMiddleware, (req, res) => {
+  const { certId } = req.params;
+  const institutionName = req.user.institutionName;
+
+  const certificate = db.certificates.find(cert => cert.id === certId && cert.issuer === institutionName);
+  if (!certificate) {
+    return res.status(404).json({ message: 'Certificate not found' });
+  }
+
+  certificate.isRevoked = true;
+  certificate.revocationDate = new Date().toISOString();
+  saveDb();
+
+  res.json({ message: 'Certificate revoked successfully' });
+});
+
+// Institution signup endpoint
+app.post('/api/institution/signup', async (req, res) => {
+  const { institutionName, registrationNumber, email, phone, address, password } = req.body;
+
+  // Validate input
+  if (!institutionName || !registrationNumber || !email || !password) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  // Check if institution already exists
+  const existingInstitution = db.users.institutions.find(
+    i => i.email === email || i.registrationNumber === registrationNumber
+  );
+  if (existingInstitution) {
+    return res.status(400).json({ message: 'Institution with this email or registration number already exists' });
+  }
+
+  // Create new institution
+  const newInstitution = {
+    institutionName,
+    registrationNumber,
+    email,
+    phone: phone || '',
+    address: address || '',
+    password, // In a real app, this should be hashed
+    createdAt: new Date().toISOString()
+  };
+
+  // Add to database
+  db.users.institutions.push(newInstitution);
+  saveDb();
+
+  // Generate token
+  const token = jwt.sign(
+    { email, role: 'institution' },
+    SECRET,
+    { expiresIn: '24h' }
+  );
+
+  res.json({
+    message: 'Institution account created successfully',
+    token,
+    user: {
+      institutionName: newInstitution.institutionName,
+      email: newInstitution.email,
+      role: 'institution'
     }
   });
 });
