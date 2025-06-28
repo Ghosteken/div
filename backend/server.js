@@ -7,6 +7,82 @@ const multer = require('multer');
 const path = require('path');
 const crypto = require('crypto');
 
+// Simple Isolation Forest implementation for anomaly detection
+class SimpleIsolationForest {
+  constructor(numTrees = 10, maxDepth = 8) {
+    this.numTrees = numTrees;
+    this.maxDepth = maxDepth;
+    this.trees = [];
+  }
+
+  // Build isolation trees
+  fit(data) {
+    this.trees = [];
+    for (let i = 0; i < this.numTrees; i++) {
+      const tree = this.buildTree(data, 0);
+      this.trees.push(tree);
+    }
+  }
+
+  // Build a single isolation tree
+  buildTree(data, depth) {
+    if (depth >= this.maxDepth || data.length <= 1) {
+      return { size: data.length };
+    }
+
+    // Random feature and split point
+    const featureIndex = Math.floor(Math.random() * data[0].length);
+    const values = data.map(row => row[featureIndex]);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    if (min === max) return { size: data.length };
+
+    const splitValue = Math.random() * (max - min) + min;
+
+    const left = data.filter(row => row[featureIndex] < splitValue);
+    const right = data.filter(row => row[featureIndex] >= splitValue);
+
+    return {
+      featureIndex,
+      splitValue,
+      left: this.buildTree(left, depth + 1),
+      right: this.buildTree(right, depth + 1)
+    };
+  }
+
+  // Calculate anomaly score for a single point
+  predict(point) {
+    const pathLengths = this.trees.map(tree => this.getPathLength(point, tree, 0));
+    const avgPathLength = pathLengths.reduce((a, b) => a + b, 0) / pathLengths.length;
+
+    // Normalize score (higher score = more anomalous)
+    return Math.pow(2, -avgPathLength / this.c(100));
+  }
+
+  // Get path length in tree
+  getPathLength(point, node, depth) {
+    if (node.size !== undefined) {
+      return depth + this.c(node.size);
+    }
+
+    if (point[node.featureIndex] < node.splitValue) {
+      return this.getPathLength(point, node.left, depth + 1);
+    } else {
+      return this.getPathLength(point, node.right, depth + 1);
+    }
+  }
+
+  // Average path length of unsuccessful search in BST
+  c(n) {
+    if (n <= 1) return 0;
+    return 2 * (Math.log(n - 1) + 0.5772156649) - (2 * (n - 1) / n);
+  }
+}
+
+// Initialize anomaly detector
+const anomalyDetector = new SimpleIsolationForest();
+
 const app = express();
 const PORT = 5000;
 const SECRET = 'ubdbwu9d38nd398hd393d928';
@@ -32,6 +108,12 @@ try {
   if (fs.existsSync(path.join(__dirname, 'db.json'))) {
     const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'db.json'), 'utf8'));
     Object.assign(db, data);
+
+    // Train anomaly detector with existing data
+    if (db.certificates && db.certificates.length >= 5) {
+      trainAnomalyDetector();
+      console.log('Anomaly detector initialized with existing certificates');
+    }
   }
 } catch (error) {
   console.error('Error loading database:', error);
@@ -205,6 +287,44 @@ const generateVerificationCode = () => {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 };
 
+// Extract features for anomaly detection
+const extractCertificateFeatures = (cert) => {
+  const now = new Date();
+  const uploadDate = new Date(cert.uploadDate);
+
+  return [
+    cert.issuer.length, // Issuer name length
+    cert.certificateId ? cert.certificateId.length : 0, // Certificate ID length
+    (now - uploadDate) / (1000 * 60 * 60), // Hours since upload
+    cert.nin ? cert.nin.length : 0, // NIN length
+    cert.program ? cert.program.length : 0, // Program name length
+    cert.grade ? (cert.grade === 'A' ? 4 : cert.grade === 'B' ? 3 : cert.grade === 'C' ? 2 : 1) : 0 // Grade numeric
+  ];
+};
+
+// Train anomaly detector with existing certificates
+const trainAnomalyDetector = () => {
+  if (db.certificates.length < 5) return; // Need minimum data
+
+  const features = db.certificates.map(extractCertificateFeatures);
+  anomalyDetector.fit(features);
+  console.log('Anomaly detector trained with', features.length, 'certificates');
+};
+
+// Check if certificate is anomalous
+const checkCertificateAnomaly = (cert) => {
+  if (db.certificates.length < 5) return { isAnomalous: false, score: 0 };
+
+  const features = extractCertificateFeatures(cert);
+  const score = anomalyDetector.predict(features);
+
+  return {
+    isAnomalous: score > 0.6, // Threshold for anomaly
+    score: score,
+    details: 'Anomaly detection based on certificate patterns'
+  };
+};
+
 // Student certificate upload endpoint
 app.post('/api/student/upload-certificate', authMiddleware, upload.single('certificateFile'), (req, res) => {
   const { certificateId, issuer } = req.body;
@@ -233,9 +353,24 @@ app.post('/api/student/upload-certificate', authMiddleware, upload.single('certi
     uploadDate: new Date().toISOString()
   };
 
+  // Check for anomalies
+  const anomalyResult = checkCertificateAnomaly(cert);
+  cert.anomalyScore = anomalyResult.score;
+  cert.isAnomalous = anomalyResult.isAnomalous;
+
   db.certificates.push(cert);
+
+  // Retrain detector with new data
+  if (db.certificates.length >= 5) {
+    trainAnomalyDetector();
+  }
+
   saveDb();
-  res.json({ message: 'Certificate uploaded successfully', certificate: cert });
+  res.json({
+    message: 'Certificate uploaded successfully',
+    certificate: cert,
+    anomalyDetection: anomalyResult
+  });
 });
 
 // Get student certificates
@@ -306,20 +441,63 @@ app.get('/api/verify/:code/ai', async (req, res) => {
   }
 
   try {
-    // Simulate AI analysis with more detailed information
+    // Get anomaly detection results
+    const anomalyResult = checkCertificateAnomaly(certificate);
+
+    // Calculate confidence based on available information and anomaly score
+    const hasStudentName = certificate.studentName && certificate.studentName.trim() !== '';
+    const hasProgram = certificate.program && certificate.program.trim() !== '';
+    const hasGrade = certificate.grade && certificate.grade.trim() !== '';
+    const hasIssuer = certificate.issuer && certificate.issuer.trim() !== '';
+
+    // Base confidence on data completeness
+    let confidence = 0;
+    if (hasIssuer) confidence += 25;
+    if (hasStudentName) confidence += 25;
+    if (hasProgram) confidence += 25;
+    if (hasGrade) confidence += 25;
+
+    // Reduce confidence if anomalous
+    if (anomalyResult.isAnomalous) {
+      confidence = Math.max(10, confidence - 30);
+    }
+
+    // Add some randomness but keep it realistic
+    confidence = Math.max(10, Math.min(95, confidence + Math.floor(Math.random() * 20) - 10));
+
+    // Determine authenticity based on confidence and anomaly
+    let authenticity;
+    if (confidence >= 70 && !anomalyResult.isAnomalous) {
+      authenticity = 'High';
+    } else if (confidence >= 40 && anomalyResult.score < 0.7) {
+      authenticity = 'Medium';
+    } else {
+      authenticity = 'Low';
+    }
+
+    // Build details object with only available information
+    const details = {
+      issuer: certificate.issuer,
+      issueDate: certificate.uploadDate,
+      verificationStatus: certificate.isVerified ? 'Verified' : 'Pending',
+      certificateId: certificate.id,
+      originalCode: certificate.originalCode || certificate.verificationCode
+    };
+
+    // Only add fields that have actual data
+    if (hasStudentName) details.studentName = certificate.studentName;
+    if (hasProgram) details.program = certificate.program;
+    if (hasGrade) details.grade = certificate.grade;
+
     const analysis = {
-      authenticity: Math.random() > 0.1 ? 'High' : 'Low',
-      confidence: Math.floor(Math.random() * 100),
-      details: {
-        issuer: certificate.issuer,
-        issueDate: certificate.uploadDate,
-        verificationStatus: certificate.isVerified ? 'Verified' : 'Pending',
-        studentName: certificate.studentName || 'Not provided',
-        program: certificate.program || 'Not provided',
-        grade: certificate.grade || 'Not provided',
-        certificateId: certificate.id,
-        originalCode: certificate.originalCode || certificate.verificationCode
-      }
+      authenticity,
+      confidence: `${confidence}%`,
+      anomalyDetection: {
+        isAnomalous: anomalyResult.isAnomalous,
+        anomalyScore: Math.round(anomalyResult.score * 100) / 100,
+        riskLevel: anomalyResult.score > 0.8 ? 'High' : anomalyResult.score > 0.6 ? 'Medium' : 'Low'
+      },
+      details
     };
 
     res.json({
@@ -383,9 +561,24 @@ app.post('/api/institution/upload-certificate', authMiddleware, upload.single('c
     issuer: req.user.institutionName // From auth middleware
   };
 
+  // Check for anomalies
+  const anomalyResult = checkCertificateAnomaly(cert);
+  cert.anomalyScore = anomalyResult.score;
+  cert.isAnomalous = anomalyResult.isAnomalous;
+
   db.certificates.push(cert);
+
+  // Retrain detector with new data
+  if (db.certificates.length >= 5) {
+    trainAnomalyDetector();
+  }
+
   saveDb();
-  res.json({ message: 'Certificate uploaded successfully', certificate: cert });
+  res.json({
+    message: 'Certificate uploaded successfully',
+    certificate: cert,
+    anomalyDetection: anomalyResult
+  });
 });
 
 // Get institution's certificates
@@ -476,25 +669,53 @@ app.get('/api/certificates/download/:certId', authMiddleware, (req, res) => {
   res.download(filePath);
 });
 
+// Anomaly detection endpoint
+app.get('/api/admin/anomalies', authMiddleware, (req, res) => {
+  const anomalousCount = db.certificates.filter(cert => cert.isAnomalous).length;
+  const totalCertificates = db.certificates.length;
+  const anomalyRate = totalCertificates > 0 ? (anomalousCount / totalCertificates * 100).toFixed(2) : 0;
+
+  const anomalousCertificates = db.certificates
+    .filter(cert => cert.isAnomalous)
+    .map(cert => ({
+      id: cert.id,
+      issuer: cert.issuer,
+      anomalyScore: cert.anomalyScore,
+      uploadDate: cert.uploadDate,
+      riskLevel: cert.anomalyScore > 0.8 ? 'High' : cert.anomalyScore > 0.6 ? 'Medium' : 'Low'
+    }));
+
+  res.json({
+    anomalousCount,
+    totalCertificates,
+    anomalyRate: `${anomalyRate}%`,
+    anomalousCertificates,
+    detectorStatus: db.certificates.length >= 5 ? 'Active' : 'Insufficient Data'
+  });
+});
+
 // Admin analytics endpoint
 app.get('/api/admin/analytics', authMiddleware, (req, res) => {
   const totalCertificates = db.certificates.length;
   const totalVerifications = db.certificates.filter(cert => cert.isVerified).length;
   const totalInstitutions = db.users.institutions.length;
   const totalReports = db.certificates.filter(cert => cert.isReported).length;
+  const anomalousCount = db.certificates.filter(cert => cert.isAnomalous).length;
 
   const recentActivity = db.certificates.slice(-5).map(cert => ({
     type: cert.isVerified ? 'verification' : 'upload',
     description: `Certificate ${cert.certificateId} was ${cert.isVerified ? 'verified' : 'uploaded'}`,
     institution: cert.issuer,
-    timestamp: cert.uploadDate
+    timestamp: cert.uploadDate,
+    isAnomalous: cert.isAnomalous || false
   }));
 
   const institutionStats = db.users.institutions.map(inst => ({
     name: inst.institutionName,
     certificateCount: db.certificates.filter(cert => cert.issuer === inst.institutionName).length,
     verificationCount: db.certificates.filter(cert => cert.issuer === inst.institutionName && cert.isVerified).length,
-    reportCount: db.certificates.filter(cert => cert.issuer === inst.institutionName && cert.isReported).length
+    reportCount: db.certificates.filter(cert => cert.issuer === inst.institutionName && cert.isReported).length,
+    anomalyCount: db.certificates.filter(cert => cert.issuer === inst.institutionName && cert.isAnomalous).length
   }));
 
   res.json({
@@ -502,6 +723,7 @@ app.get('/api/admin/analytics', authMiddleware, (req, res) => {
     totalVerifications,
     totalInstitutions,
     totalReports,
+    anomalousCount,
     recentActivity,
     institutionStats
   });

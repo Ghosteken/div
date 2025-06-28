@@ -281,12 +281,21 @@ function HomePage() {
                     <h3 className="font-semibold text-gray-800 mb-2">AI Analysis</h3>
                     <div className="space-y-2">
                       <p><span className="text-gray-600">Authenticity:</span> {aiAnalysis.authenticity}</p>
-                      <p><span className="text-gray-600">Confidence:</span> {aiAnalysis.confidence}%</p>
+                      <p><span className="text-gray-600">Confidence:</span> {aiAnalysis.confidence}</p>
+                      {aiAnalysis.anomalyDetection && (
+                        <p><span className="text-gray-600">Risk Level:</span> {aiAnalysis.anomalyDetection.riskLevel}</p>
+                      )}
                       {aiAnalysis.details && (
                         <>
-                          <p><span className="text-gray-600">Student Name:</span> {aiAnalysis.details.studentName}</p>
-                          <p><span className="text-gray-600">Program:</span> {aiAnalysis.details.program}</p>
-                          <p><span className="text-gray-600">Grade:</span> {aiAnalysis.details.grade}</p>
+                          {aiAnalysis.details.studentName && (
+                            <p><span className="text-gray-600">Student Name:</span> {aiAnalysis.details.studentName}</p>
+                          )}
+                          {aiAnalysis.details.program && (
+                            <p><span className="text-gray-600">Program:</span> {aiAnalysis.details.program}</p>
+                          )}
+                          {aiAnalysis.details.grade && (
+                            <p><span className="text-gray-600">Grade:</span> {aiAnalysis.details.grade}</p>
+                          )}
                         </>
                       )}
                       {aiAnalysis.error && (
@@ -301,19 +310,7 @@ function HomePage() {
         </div>
       )}
 
-      {/* Verification Result */}
-      {verificationResult && (
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '2rem',
-          marginTop: '2rem',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h2 style={{ color: '#2d3748', marginBottom: '1rem' }}>Verification Result</h2>
-          <pre style={{ color: '#4a5568' }}>{JSON.stringify(verificationResult, null, 2)}</pre>
-        </div>
-      )}
+
 
       {/* Recent Verifications Section */}
       {showRecentVerifications && (
